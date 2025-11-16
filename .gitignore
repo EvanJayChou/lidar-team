@@ -1,1 +1,34 @@
-ros2_ws/
+# Allow committing ROS 2 workspace sources while ignoring build outputs and caches
+
+# ROS 2 colcon outputs (do not commit)
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+
+# Python caches and test artifacts
+ros2_ws/**/__pycache__/
+ros2_ws/**/.pytest_cache/
+ros2_ws/**/*.py[cod]
+ros2_ws/**/*$py.class
+ros2_ws/**/.mypy_cache/
+ros2_ws/**/.ruff_cache/
+ros2_ws/**/.coverage
+ros2_ws/**/.coverage.*
+ros2_ws/**/coverage.xml
+
+# Packaging artifacts
+ros2_ws/**/*.egg-info/
+ros2_ws/**/dist/
+ros2_ws/**/build/lib/
+ros2_ws/**/build/bdist*/
+
+# IDE/editor & OS files
+ros2_ws/**/.vscode/
+ros2_ws/**/.idea/
+ros2_ws/**/.DS_Store
+
+# Virtual environments
+ros2_ws/.venv/
+ros2_ws/venv/
+ros2_ws/**/.venv/
+ros2_ws/**/venv/

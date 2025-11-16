@@ -5,7 +5,7 @@
 ```
 └── lidar-team/
     ├── ros2_ws                     # ROS 2 packages and scripts
-        └── lidar_ml_bridge         # Publisher Node for LiDAR -> Point Cloud
+        └── lidar_ml_bridge         # Subscriber Node for LiDAR -> Vectorized Points
     └── .git/         # Git version history
 ```
 
