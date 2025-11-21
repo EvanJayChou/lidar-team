@@ -57,10 +57,7 @@ class ClusterBoundingBoxNode(Node):
     #                             MAIN CALLBACK
     # =========================================================================
     def on_cloud(self, msg: PointCloud2):
-        """
-        Called when a clustered point cloud arrives.
-        We expect fields: x, y, z, <cluster_id>
-        """
+    
         try:
             pts = point_cloud2.read_points(
                 msg,
@@ -71,69 +68,86 @@ class ClusterBoundingBoxNode(Node):
             self.get_logger().error(f"Field '{self.cluster_field}' not found in cloud")
             return
 
+        # ------------------------------------------------------------
+        # 1) Read into NumPy arrays (vector-friendly)
+        # ------------------------------------------------------------
         xyz_list = []
         cid_list = []
 
         for (x, y, z, cid) in pts:
-            xyz_list.append([x, y, z])
+            xyz_list.append((x, y, z))
             cid_list.append(int(cid))
 
-        if len(xyz_list) == 0:
+        if not xyz_list:
             return
 
-        xyz = np.array(xyz_list)
-        labels = np.array(cid_list)
+        # (N, 3) float32 array of xyz
+        xyz = np.asarray(xyz_list, dtype=np.float32)
+        # (N,) int32 array of cluster ids
+        labels = np.asarray(cid_list, dtype=np.int32)
 
-        # === Group points by cluster ID ===
-        clusters: Dict[int, np.ndarray] = {}
-        for idx, cid in enumerate(labels):
-            clusters.setdefault(cid, []).append(idx)
+        # ------------------------------------------------------------
+        # 2) Unique cluster IDs + stats in one shot
+        # ------------------------------------------------------------
+        # unique_cids: sorted unique cluster IDs, shape (K,)
+        # inverse: for each point i, the index k such that unique_cids[k] == labels[i]
+        # counts: number of points per cluster, shape (K,)
+        unique_cids, inverse, counts = np.unique(
+            labels, return_inverse=True, return_counts=True
+        )
 
-        # === Create MarkerArray ===
+        # ------------------------------------------------------------
+        # 3) Prepare MarkerArray and clear old markers
+        # ------------------------------------------------------------
         marker_array = MarkerArray()
 
-        # Clear old markers
         delete_all = Marker()
         delete_all.action = Marker.DELETEALL
         marker_array.markers.append(delete_all)
 
-        # === For each cluster, compute bounding box ===
-        for cid, idx_list in clusters.items():
+        # ------------------------------------------------------------
+        # 4) Loop over clusters (now K clusters instead of N points)
+        # ------------------------------------------------------------
+        for cluster_idx, (cid, count) in enumerate(zip(unique_cids, counts)):
 
-            if len(idx_list) < self.min_pts:
+            # Skip small clusters
+            if count < self.min_pts:
                 continue
 
-            pts_c = xyz[idx_list]
+            # Boolean mask: True for points belonging to this cluster
+            mask = (inverse == cluster_idx)
+            pts_c = xyz[mask]        # shape (count, 3)
 
-            xs, ys, zs = pts_c[:,0], pts_c[:,1], pts_c[:,2]
-            min_x, max_x = xs.min(), xs.max()
-            min_y, max_y = ys.min(), ys.max()
-            min_z, max_z = zs.min(), zs.max()
+            # Vectorized min/max over x,y,z
+            mins = pts_c.min(axis=0)  # [min_x, min_y, min_z]
+            maxs = pts_c.max(axis=0)  # [max_x, max_y, max_z]
 
-            # Center and size
-            cx = (min_x + max_x) / 2
-            cy = (min_y + max_y) / 2
-            cz = (min_z + max_z) / 2
+            # Center and size: still fully vectorized
+            center = 0.5 * (mins + maxs)    # [cx, cy, cz]
+            size   = maxs - mins            # [sx, sy, sz]
 
-            sx = max_x - min_x
-            sy = max_y - min_y
-            sz = max_z - min_z
+            min_x, min_y, min_z = mins
+            max_x, max_y, max_z = maxs
+            cx, cy, cz = center
+            sx, sy, sz = size
 
-            # === Create 3D box marker ===
+            # --------------------------------------------------------
+            # 4a) 3D box marker
+            # --------------------------------------------------------
             box = Marker()
             box.header = msg.header
             box.ns = "cluster_boxes"
-            box.id = cid
+            box.id = int(cid)
             box.type = Marker.CUBE
             box.action = Marker.ADD
 
-            box.pose.position.x = cx
-            box.pose.position.y = cy
-            box.pose.position.z = cz
+            box.pose.position.x = float(cx)
+            box.pose.position.y = float(cy)
+            box.pose.position.z = float(cz)
 
-            box.scale.x = max(sx, 0.01)
-            box.scale.y = max(sy, 0.01)
-            box.scale.z = max(sz, 0.01)
+            box.scale.x = float(max(sx, 0.01))
+            box.scale.y = float(max(sy, 0.01))
+            box.scale.z = float(max(sz, 0.01))
 
             box.color.r = 1.0
             box.color.g = 1.0
@@ -142,21 +156,23 @@ class ClusterBoundingBoxNode(Node):
 
             marker_array.markers.append(box)
 
-            # === Outline (2D footprint) ===
+            # --------------------------------------------------------
+            # 4b) 2D footprint outline
+            # --------------------------------------------------------
             outline = Marker()
             outline.header = msg.header
             outline.ns = "cluster_outlines"
-            outline.id = cid + 10000
+            outline.id = int(cid) + 10000
             outline.type = Marker.LINE_STRIP
             outline.action = Marker.ADD
-            outline.scale.x = 0.06  # line thickness
+            outline.scale.x = 0.06  # line thickness [m]
 
             outline.color.r = 0.0
             outline.color.g = 1.0
             outline.color.b = 0.0
             outline.color.a = 1.0
 
-            z_draw = min_z  # outline height
+            z_draw = float(min_z)
 
             corners = [
                 (min_x, min_y),
@@ -168,14 +184,16 @@ class ClusterBoundingBoxNode(Node):
 
             for px, py in corners:
                 p = Point()
-                p.x = px
-                p.y = py
+                p.x = float(px)
+                p.y = float(py)
                 p.z = z_draw
                 outline.points.append(p)
 
             marker_array.markers.append(outline)
 
-        # Publish all boxes
+        # ------------------------------------------------------------
+        # 5) Publish all boxes
+        # ------------------------------------------------------------
         self.pub.publish(marker_array)
 
 
