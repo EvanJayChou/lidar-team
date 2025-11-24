@@ -21,6 +21,9 @@ from typing import List
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+from std_msgs.msg import Float32MultiArray
+from sklearn.cluster import KMeans
+import numpy as np
 
 from sensor_msgs.msg import PointCloud2
 
@@ -52,6 +55,7 @@ class PointCloudBridgeNode(Node):
             self._on_pointcloud,
             qos,
         )
+        self._publisher = self.create_subscription(Float32MultiArray, 'clustered_points', 10)
         self.get_logger().info(f"Subscribed to PointCloud2 topic: {topic}")
 
     # -------------------------- Callback --------------------------
@@ -61,22 +65,40 @@ class PointCloudBridgeNode(Node):
             keep_fields=self._keep_fields if self._keep_fields else None,
             use_numpy=self._use_numpy,
         )
-        # Placeholder for forwarding to ML pipeline
-        self.send_to_ml(parsed)
+        # Run K-means clustering
+        clustered_points = self.cluster(parsed)
+        # Create a Float32MultiArray message but TODO look into using numpy messages for added speed
+        msg = Float32MultiArray()
+        # Flatten the NumPy array and assign it to the data field
+        msg.data = clustered_points.flatten().tolist() 
+        
+        self.pub.publish(msg)
 
     # -------------------------- Extension Hook -------------------
-    def send_to_ml(self, parsed: ParsedCloud) -> None:  # pragma: no cover - skeleton hook
-        """Override or extend: forward parsed data into an ML pipeline.
-        Examples:
-          - Publish a custom message
-          - Push onto a multiprocessing queue
-          - Perform pre-processing and batching
-        Currently logs a summary only.
+    def cluster(self, parsed: ParsedCloud) -> None:  # pragma: no cover - skeleton hook
         """
-        num_points = len(parsed.xyz)
-        self.get_logger().debug(
-            f"Parsed cloud frame={parsed.frame_id} points={num_points} has_intensity={'yes' if parsed.intensity is not None else 'no'}"
+        Perform K-Means Clustering and prepare points to be republished.
+        """
+        # Currently unsure if we need to do any conversion on parsed.xyz to get it into a format for Kmeans
+        points = parsed.xyz
+
+        num_points = len(points)
+        # TODO: make this configuarable
+        num_clusters = 10
+
+        # Do Kmeans
+        kmeans = KMeans(n_clusters=num_clusters, init='k-means++')
+        kmeans.fit(points)
+
+        # Reshape points into nx4 array as [x,y,z, cluster_id]
+        clustered_points = np.zeros(shape=(num_points, 4))
+        for i, point in enumerate(points):
+            clustered_points[i, 0:3] = points[i, :] 
+            clustered_points[i, -1:] = kmeans.labels_[i]
+        self.get_logger().info(
+            f"frame {parsed.frame_id}: points={num_points} clusted_points: {clustered_points}"
         )
+        return clustered_points
 
 
 def main(args=None):  # pragma: no cover
