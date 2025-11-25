@@ -21,6 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'lidar_pointcloud_bridge=lidar_ml_bridge.pointcloud_bridge_node:main',
+            'lidar_pointcloud_bounding_box=lidar_ml_bridge.cluster_bounding_boxes_node:main',
         ],
     },
 )
