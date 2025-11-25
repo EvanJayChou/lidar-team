@@ -16,7 +16,7 @@ from rclpy.node import Node
 
 from sensor_msgs.msg import PointCloud2
 from std_msgs.msg import Float32MultiArray
-from rospy.numpy_msg import numpy_msg
+from ros2_numpy import numpify
 from sensor_msgs_py import point_cloud2
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point
@@ -39,7 +39,7 @@ class ClusterBoundingBoxNode(Node):
 
         # --- Subscribers & Publishers ---
         self.sub = self.create_subscription(
-            numpy_msg(Float32MultiArray),
+            Float32MultiArray,
             input_topic,
             self.on_cloud,
             10
@@ -62,6 +62,7 @@ class ClusterBoundingBoxNode(Node):
         """
         Called when a clustered point cloud arrives.
         """
+        data = numpify(data)
         # === Create MarkerArray ===
         marker_array = MarkerArray()
 
