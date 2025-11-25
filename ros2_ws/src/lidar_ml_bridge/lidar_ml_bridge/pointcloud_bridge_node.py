@@ -23,6 +23,7 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 from std_msgs.msg import Float32MultiArray
 from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
 import numpy as np
 
 from sensor_msgs.msg import PointCloud2
@@ -57,6 +58,9 @@ class PointCloudBridgeNode(Node):
         )
         self._publisher = self.create_publisher(Float32MultiArray, 'clustered_cloud', 10)
         self.get_logger().info(f"Subscribed to PointCloud2 topic: {topic}")
+        num_clusters = 10
+        self.kmeans = KMeans(n_clusters=num_clusters, init='k-means++')
+        self.scaler = StandardScaler()
 
     # -------------------------- Callback --------------------------
     def _on_pointcloud(self, msg: PointCloud2) -> None:
@@ -94,15 +98,14 @@ class PointCloudBridgeNode(Node):
         # TODO: make this configuarable
 
         # Do Kmeans
-        num_clusters = 10
-        kmeans = KMeans(n_clusters=num_clusters, init='k-means++')
-        kmeans.fit(points)
+        scaled_points = self.scaler.fit_transform(points)
+        self.kmeans.fit(scaled_points)
 
         # Reshape points into nx4 array as [x,y,z, cluster_id]
         clustered_points = np.zeros(shape=(num_points, 4))
         for i, point in enumerate(points):
             clustered_points[i, 0:3] = points[i, :] 
-            clustered_points[i, -1:] = kmeans.labels_[i]
+            clustered_points[i, -1:] = self.kmeans.labels_[i]
         self.get_logger().info(
             f"frame {parsed.frame_id}: points={num_points} clusted_points: {clustered_points}"
         )
