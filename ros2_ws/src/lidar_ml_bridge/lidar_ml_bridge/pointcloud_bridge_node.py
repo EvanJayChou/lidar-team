@@ -72,7 +72,7 @@ class PointCloudBridgeNode(Node):
         # Flatten the NumPy array and assign it to the data field
         msg.data = clustered_points.flatten().tolist() 
 
-        self.pub.publish(msg)
+        self._publisher.publish(msg)
 
     # -------------------------- Extension Hook -------------------
     def cluster(self, parsed: ParsedCloud) -> None:  # pragma: no cover - skeleton hook
