@@ -55,7 +55,7 @@ class PointCloudBridgeNode(Node):
             self._on_pointcloud,
             qos,
         )
-        self._publisher = self.create_subscription(Float32MultiArray, 'clustered_cloud', 10)
+        self._publisher = self.create_publisher(Float32MultiArray, 'clustered_cloud', 10)
         self.get_logger().info(f"Subscribed to PointCloud2 topic: {topic}")
 
     # -------------------------- Callback --------------------------
