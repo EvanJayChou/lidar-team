@@ -94,7 +94,6 @@ class PointCloudBridgeNode(Node):
         points = points[~rows_to_drop_mask]
 
         num_points = len(points)
-        self.get_logger().info(f"frame {parsed.frame_id}: points={num_points} points: {points} shape: {points.shape}")
         # TODO: make this configuarable
 
         # Do Kmeans
@@ -107,7 +106,7 @@ class PointCloudBridgeNode(Node):
             clustered_points[i, 0:3] = points[i, :] 
             clustered_points[i, -1:] = self.kmeans.labels_[i]
         self.get_logger().info(
-            f"frame {parsed.frame_id}: points={num_points} clusted_points: {clustered_points}"
+            f"frame {parsed.frame_id}: points={num_points} clustered_points: {clustered_points}"
         )
         return clustered_points
 
