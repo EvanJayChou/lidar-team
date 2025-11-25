@@ -59,7 +59,7 @@ class PointCloudBridgeNode(Node):
         self._publisher = self.create_publisher(Float32MultiArray, 'clustered_cloud', 10)
         self.get_logger().info(f"Subscribed to PointCloud2 topic: {topic}")
         num_clusters = 10
-        self.kmeans = KMeans(n_clusters=num_clusters, init='k-means++')
+        self.kmeans = KMeans(n_clusters=num_clusters, init='k-means++', n_init='auto')
         self.scaler = StandardScaler()
 
     # -------------------------- Callback --------------------------
