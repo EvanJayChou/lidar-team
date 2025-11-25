@@ -81,6 +81,8 @@ class PointCloudBridgeNode(Node):
         """
         # Currently unsure if we need to do any conversion on parsed.xyz to get it into a format for Kmeans
         points = parsed.xyz
+        self.get_logger().info(f"frame {parsed.frame_id}: points: {parsed.xyz}")
+
         
         # Remove NaNs
         points = points[~np.isnan(points)]
