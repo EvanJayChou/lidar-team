@@ -15,6 +15,8 @@ import rclpy
 from rclpy.node import Node
 
 from sensor_msgs.msg import PointCloud2
+from std_msgs.msg import Float32MultiArray
+from rospy.numpy_msg import numpy_msg
 from sensor_msgs_py import point_cloud2
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point
@@ -37,7 +39,7 @@ class ClusterBoundingBoxNode(Node):
 
         # --- Subscribers & Publishers ---
         self.sub = self.create_subscription(
-            PointCloud2,
+            numpy_msg(Float32MultiArray),
             input_topic,
             self.on_cloud,
             10
@@ -56,39 +58,10 @@ class ClusterBoundingBoxNode(Node):
     # =========================================================================
     #                             MAIN CALLBACK
     # =========================================================================
-    def on_cloud(self, msg: PointCloud2):
+    def on_cloud(self, data):
         """
         Called when a clustered point cloud arrives.
-        We expect fields: x, y, z, <cluster_id>
         """
-        try:
-            pts = point_cloud2.read_points(
-                msg,
-                field_names=["x", "y", "z", self.cluster_field],
-                skip_nans=True
-            )
-        except Exception as e:
-            self.get_logger().error(f"Field '{self.cluster_field}' not found in cloud")
-            return
-
-        xyz_list = []
-        cid_list = []
-
-        for (x, y, z, cid) in pts:
-            xyz_list.append([x, y, z])
-            cid_list.append(int(cid))
-
-        if len(xyz_list) == 0:
-            return
-
-        xyz = np.array(xyz_list)
-        labels = np.array(cid_list)
-
-        # === Group points by cluster ID ===
-        clusters: Dict[int, np.ndarray] = {}
-        for idx, cid in enumerate(labels):
-            clusters.setdefault(cid, []).append(idx)
-
         # === Create MarkerArray ===
         marker_array = MarkerArray()
 
@@ -97,18 +70,16 @@ class ClusterBoundingBoxNode(Node):
         delete_all.action = Marker.DELETEALL
         marker_array.markers.append(delete_all)
 
-        # === For each cluster, compute bounding box ===
-        for cid, idx_list in clusters.items():
+        for id in np.unique(data[:,3]):
+            mask = (data[:, 3] == id)
+            cluster_data = data[mask]
+            max_x = np.max(cluster_data[:, 0])
+            max_y = np.max(cluster_data[:, 1])
+            max_z = np.max(cluster_data[:, 2])
 
-            if len(idx_list) < self.min_pts:
-                continue
-
-            pts_c = xyz[idx_list]
-
-            xs, ys, zs = pts_c[:,0], pts_c[:,1], pts_c[:,2]
-            min_x, max_x = xs.min(), xs.max()
-            min_y, max_y = ys.min(), ys.max()
-            min_z, max_z = zs.min(), zs.max()
+            min_x = np.min(cluster_data[:, 0])
+            min_y = np.min(cluster_data[:, 1])
+            min_z = np.min(cluster_data[:, 2])
 
             # Center and size
             cx = (min_x + max_x) / 2
@@ -121,9 +92,9 @@ class ClusterBoundingBoxNode(Node):
 
             # === Create 3D box marker ===
             box = Marker()
-            box.header = msg.header
+            # box.header = msg.header
             box.ns = "cluster_boxes"
-            box.id = cid
+            box.id = id
             box.type = Marker.CUBE
             box.action = Marker.ADD
 
@@ -144,9 +115,9 @@ class ClusterBoundingBoxNode(Node):
 
             # === Outline (2D footprint) ===
             outline = Marker()
-            outline.header = msg.header
+            # outline.header = msg.header
             outline.ns = "cluster_outlines"
-            outline.id = cid + 10000
+            outline.id = id + 10000
             outline.type = Marker.LINE_STRIP
             outline.action = Marker.ADD
             outline.scale.x = 0.06  # line thickness

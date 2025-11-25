@@ -55,7 +55,7 @@ class PointCloudBridgeNode(Node):
             self._on_pointcloud,
             qos,
         )
-        self._publisher = self.create_subscription(Float32MultiArray, 'clustered_points', 10)
+        self._publisher = self.create_subscription(Float32MultiArray, 'clustered_cloud', 10)
         self.get_logger().info(f"Subscribed to PointCloud2 topic: {topic}")
 
     # -------------------------- Callback --------------------------
@@ -71,7 +71,7 @@ class PointCloudBridgeNode(Node):
         msg = Float32MultiArray()
         # Flatten the NumPy array and assign it to the data field
         msg.data = clustered_points.flatten().tolist() 
-        
+
         self.pub.publish(msg)
 
     # -------------------------- Extension Hook -------------------
