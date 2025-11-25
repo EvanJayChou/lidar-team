@@ -81,7 +81,9 @@ class PointCloudBridgeNode(Node):
         """
         # Currently unsure if we need to do any conversion on parsed.xyz to get it into a format for Kmeans
         points = parsed.xyz
-
+        
+        # Remove NaNs
+        points = points[~np.isnan(points)]
         num_points = len(points)
         # TODO: make this configuarable
         num_clusters = 10
