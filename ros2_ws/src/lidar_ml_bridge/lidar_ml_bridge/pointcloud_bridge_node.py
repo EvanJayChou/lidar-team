@@ -85,7 +85,7 @@ class PointCloudBridgeNode(Node):
 
         
         # Remove NaNs
-        points = points[~np.isnan(points)]
+        points = points[~np.isnan(points).any(axis=1)]
         num_points = len(points)
         self.get_logger().info(f"frame {parsed.frame_id}: points={num_points} points: {points} shape: {points.shape}")
         # TODO: make this configuarable
