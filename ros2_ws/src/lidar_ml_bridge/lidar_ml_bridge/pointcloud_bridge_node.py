@@ -81,17 +81,20 @@ class PointCloudBridgeNode(Node):
         """
         # Currently unsure if we need to do any conversion on parsed.xyz to get it into a format for Kmeans
         points = parsed.xyz
-        self.get_logger().info(f"frame {parsed.frame_id}: points: {parsed.xyz}")
-
         
-        # Remove NaNs
+        # Remove NaNs and also infinite values
+        max_val = 2e20
         points = points[~np.isnan(points).any(axis=1)]
+        mask = np.abs(points) > max_val
+        rows_to_drop_mask = mask.any(axis=1)
+        points = points[~rows_to_drop_mask]
+
         num_points = len(points)
         self.get_logger().info(f"frame {parsed.frame_id}: points={num_points} points: {points} shape: {points.shape}")
         # TODO: make this configuarable
-        num_clusters = 10
 
         # Do Kmeans
+        num_clusters = 10
         kmeans = KMeans(n_clusters=num_clusters, init='k-means++')
         kmeans.fit(points)
 
