@@ -54,12 +54,19 @@ class ClusterBoundingBoxNode(Node):
     # =========================================================================
     #                             MAIN CALLBACK
     # =========================================================================
-    def on_cloud(self, data):
+    def on_cloud(self, msg: Float32MultiArray):
         """
         Called when a clustered point cloud arrives.
         """
-        data = np.array(data.data)
-        data = np.reshape(data, (-1, 4))
+        #convert it into (N.4) numpy array
+        raw = np.array(msg.data, dtype=np.float32)
+        if raw.size == 0:
+            return
+        if raw.size % 4 != 0:
+            self.get_logger().warn(f"Got msg.data of length {raw.size}, not divisible by 4")
+            return
+
+        data = raw.reshape(-1, 4)
         # === Create MarkerArray ===
         marker_array = MarkerArray()
 
@@ -68,9 +75,10 @@ class ClusterBoundingBoxNode(Node):
         delete_all.action = Marker.DELETEALL
         marker_array.markers.append(delete_all)
 
-        for id in np.unique(data[:,3]):
-            mask = (data[:, 3] == id)
+        for cid in np.unique(data[:,3]):
+            mask = (data[:, 3] == cid)
             cluster_data = data[mask]
+            clusterid=int(cid)
             max_x = np.max(cluster_data[:, 0])
             max_y = np.max(cluster_data[:, 1])
             max_z = np.max(cluster_data[:, 2])
@@ -92,7 +100,7 @@ class ClusterBoundingBoxNode(Node):
             box = Marker()
             # box.header = msg.header
             box.ns = "cluster_boxes"
-            box.id = id
+            box.id = clusterid
             box.type = Marker.CUBE
             box.action = Marker.ADD
 
@@ -115,7 +123,7 @@ class ClusterBoundingBoxNode(Node):
             outline = Marker()
             # outline.header = msg.header
             outline.ns = "cluster_outlines"
-            outline.id = id + 10000
+            outline.id = clusterid + 10000
             outline.type = Marker.LINE_STRIP
             outline.action = Marker.ADD
             outline.scale.x = 0.06  # line thickness
