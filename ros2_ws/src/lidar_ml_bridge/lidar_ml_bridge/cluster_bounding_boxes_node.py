@@ -8,13 +8,11 @@
 """
 
 from __future__ import annotations
-from typing import Dict, List
 import numpy as np
 
 import rclpy
 from rclpy.node import Node
 
-from sensor_msgs.msg import PointCloud2
 from std_msgs.msg import Float32MultiArray
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point
@@ -60,6 +58,8 @@ class ClusterBoundingBoxNode(Node):
         """
         Called when a clustered point cloud arrives.
         """
+        data = np.array(data.data)
+        data = np.reshape(data, (-1, 4))
         # === Create MarkerArray ===
         marker_array = MarkerArray()
 
