@@ -110,7 +110,7 @@ class ClusterBoundingBoxNode(Node):
             box.pose.position.y = cy
             box.pose.position.z = cz
 
-            self.get_logger().info(f"{type(float(max((sx, 0.01))))}")
+            self.get_logger().info(f"{isinstance(float(max((sx, 0.01))), float)}")
             box.scale.x = float(max((sx, 0.01)))
             box.scale.y = float(max((sy, 0.01)))
             box.scale.z = float(max((sz, 0.01)))
