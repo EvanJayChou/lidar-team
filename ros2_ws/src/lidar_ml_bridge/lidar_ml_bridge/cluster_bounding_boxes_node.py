@@ -110,9 +110,9 @@ class ClusterBoundingBoxNode(Node):
             box.pose.position.y = cy
             box.pose.position.z = cz
 
-            box.scale.x = max(sx, 0.01)
-            box.scale.y = max(sy, 0.01)
-            box.scale.z = max(sz, 0.01)
+            box.scale.x = max((sx, 0.01))
+            box.scale.y = max((sy, 0.01))
+            box.scale.z = max((sz, 0.01))
 
             box.color.r = 1.0
             box.color.g = 1.0
