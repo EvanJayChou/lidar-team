@@ -17,6 +17,7 @@ from std_msgs.msg import Float32MultiArray
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point
 
+# ros2 run lidar_ml_bridge lidar_pointcloud_bounding_box
 
 class ClusterBoundingBoxNode(Node):
     def __init__(self):
@@ -95,6 +96,7 @@ class ClusterBoundingBoxNode(Node):
             sx = max_x - min_x
             sy = max_y - min_y
             sz = max_z - min_z
+            self.get_logger().info(f"cluster_data: {cluster_data}\nmax_x:{max_x}\ncx:{cx}\nsx:{sx}")
 
             # === Create 3D box marker ===
             box = Marker()
